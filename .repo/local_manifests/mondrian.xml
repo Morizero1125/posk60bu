@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+    <remote name="github" fetch="https://github.com/" />
+
+    <!-- Device Tree -->
+    <project path="device/xiaomi/mondrian" name="cupid-development/android_device_xiaomi_mondrian" remote="github" revision="sixteen" />
+
+    <!-- Vendor -->
+    <project path="vendor/xiaomi/mondrian" name="DanipunK1-mondrian-DC/vendor_xiaomi_mondrian" remote="github" revision="sixteen" />
+
+    <!-- Kernel (AOSP-compatible 5.10 kernel for mondrian) -->
+    <project path="kernel/xiaomi/mondrian" name="mondrian-development/android_kernel_xiaomi_mondrian" remote="github" revision="sixteen" />
+
+</manifest>
