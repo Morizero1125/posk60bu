@@ -1,0 +1,80 @@
+name: PixelOS Build for mondrian
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_branch:
+        description: 'PixelOS Sync Branch (e.g., sixteen)'
+        required: true
+        default: 'sixteen'
+      target_build_type:
+        description: 'Target Build Type (e.g., userdebug)'
+        required: true
+        default: 'userdebug'
+
+jobs:
+  build:
+    name: Build PixelOS
+    runs-on: ubuntu-latest
+            
+    # 增加编译环境的内存和CPU
+    # runs-on: self-hosted # 推荐使用自托管运行器以获得更好的性能
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up environment
+        run: |
+          sudo apt update
+          sudo apt install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev libelf-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev
+          # 配置ccache
+          echo "CCACHE_DIR=${{ github.workspace }}/ccache" >> $GITHUB_ENV
+          echo "CCACHE_EXEC=/usr/bin/ccache" >> $GITHUB_ENV
+          echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
+          ccache -M 50G # 设置ccache大小为50G
+
+      - name: Initialize Repo
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          export PATH=~/bin:$PATH
+                  
+      - name: Sync PixelOS Source
+        run: |
+          export PATH=~/bin:$PATH
+          repo init -u https://github.com/PixelOS-AOSP/manifest.git -b ${{ github.event.inputs.sync_branch }} --git-lfs
+          # 复制local_manifests
+          cp -r .repo/local_manifests .repo/
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+      - name: Set up Build Environment
+        run: |
+          export PATH=~/bin:$PATH
+          source build/envsetup.sh
+          lunch pixelos_mondrian-${{ github.event.inputs.target_build_type }}
+
+      - name: Build PixelOS
+        run: |
+          export PATH=~/bin:$PATH
+          export KBUILD_BUILD_USER="Stelle0427"
+          export KBUILD_BUILD_HOST="GitHub-Actions"
+          export CCACHE_COMPRESS=1
+          export CCACHE_MAXSIZE=50G
+          ccache -z
+                  
+          # 编译命令
+          mka bacon -j$(nproc --all)
+                  
+          ccache -s
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PixelOS-${{ github.event.inputs.sync_branch }}-mondrian
+          path: out/target/product/mondrian/*.zip
+          if-no-files-found: error
+          retention-days: 7
