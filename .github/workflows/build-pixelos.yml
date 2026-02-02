@@ -1,0 +1,191 @@
+name: Build PixelOS for Redmi K60 (mondrian)
+
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: '设备代号'
+        required: true
+        default: 'mondrian'
+      rom_type:
+        description: 'ROM 类型'
+        required: true
+        default: 'pixelos'
+        type: choice
+        options:
+          - pixelos
+          - lineageos
+          - aosp
+  push:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 0 * * 0'  # 每周日 UTC 0:00 自动编译
+
+env:
+  DEVICE: ${{ github.event.inputs.device || 'mondrian' }}
+  ROM_TYPE: ${{ github.event.inputs.rom_type || 'pixelos' }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_SIZE: 50G
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # GitHub Actions 只提供 Ubuntu，但我们可以在容器里用 Debian
+    
+    steps:
+      - name: 清理磁盘空间
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+      
+      - name: 设置 Git 配置
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git config --global core.autocrlf false
+      
+      - name: 创建工作目录
+        run: |
+          mkdir -p ${{ github.workspace }}/rom
+          cd ${{ github.workspace }}/rom
+      
+      - name: 同步 PixelOS 源码
+        run: |
+          cd ${{ github.workspace }}/rom
+          
+          # 初始化 repo
+          if [ "$ROM_TYPE" = "pixelos" ]; then
+            repo init -u https://github.com/PixelOS/manifest -b fourteen --git-lfs
+          elif [ "$ROM_TYPE" = "lineageos" ]; then
+            repo init -u https://github.com/LineageOS/android.git -b lineage-21 --git-lfs
+          else
+            repo init -u https://android.googlesource.com/platform/manifest -b android-14.0.0 --git-lfs
+          fi
+          
+          # 同步源码（使用深度同步以加快速度）
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --prune
+      
+      - name: 克隆设备源码
+        run: |
+          cd ${{ github.workspace }}/rom
+          
+          # 克隆设备树
+          git clone https://github.com/cupid-development/android_device_xiaomi_mondrian device/xiaomi/mondrian
+          
+          # 克隆通用设备代码
+          git clone https://github.com/cupid-development/device_xiaomi_sm8475-common device/xiaomi/sm8475-common
+          
+          # 克隆 vendor
+          git clone https://github.com/cupid-development/vendor_xiaomi_mondrian vendor/xiaomi/mondrian
+          
+          # 克隆内核
+          git clone https://github.com/cupid-development/android_kernel_xiaomi_sm8450 kernel/xiaomi/mondrian
+          
+          # 克隆内核模块
+          git clone https://github.com/cupid-development/android_kernel_xiaomi_sm8450-modules kernel/xiaomi/sm8450-modules
+          
+          # 克隆设备树
+          git clone https://github.com/cupid-development/android_kernel_xiaomi_sm8450-devicetrees kernel/xiaomi/sm8450-devicetrees
+          
+          # 克隆其他可能的依赖
+          git clone https://github.com/cupid-development/device_xiaomi_sepolicy device/xiaomi/sepolicy
+      
+      - name: 设置编译环境
+        run: |
+          cd ${{ github.workspace }}/rom
+          
+          # 安装依赖
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ccache \
+            git \
+            gnupg \
+            flex \
+            bison \
+            gperf \
+            libsdl1.2-dev \
+            libesd-java \
+            libwxgtk3.0-dev \
+            squashfs-tools \
+            xsltproc \
+            zip \
+            libxml2-utils \
+            zlib1g-dev \
+            imagemagick \
+            liblz4-tool \
+            libssl-dev \
+            libncurses5 \
+            libncurses5-dev \
+            openjdk-17-jdk \
+            python3 \
+            python-is-python3 \
+            bc \
+            rsync \
+            libxml2 \
+            libxslt1.1 \
+            zip \
+            unzip
+      
+      - name: 设置 ccache
+        run: |
+          echo "CCACHE_DIR=$CCACHE_DIR" >> $GITHUB_ENV
+          echo "USE_CCACHE=1" >> $GITHUB_ENV
+          echo "CCACHE_EXEC=$(which ccache)" >> $GITHUB_ENV
+          ccache -M $CCACHE_SIZE
+          ccache -z
+      
+      - name: 编译 ROM
+        run: |
+          cd ${{ github.workspace }}/rom
+          
+          # 设置环境
+          source build/envsetup.sh
+          
+          # 选择设备
+          lunch pixelos_mondrian-userdebug
+          
+          # 开始编译
+          m -j$(nproc --all) bacon
+          
+          # 或者使用 make
+          # make -j$(nproc --all) bacon
+      
+      - name: 显示 ccache 统计
+        run: |
+          ccache -s
+      
+      - name: 查找编译产物
+        run: |
+          cd ${{ github.workspace }}/rom
+          find . -name "*.zip" -type f | head -20
+          find out/target/product/$DEVICE -name "*.img" -type f | head -20
+      
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixelos-${{ env.DEVICE }}-${{ github.run_number }}
+          path: |
+            ${{ github.workspace }}/rom/out/target/product/${{ env.DEVICE }}/*.zip
+            ${{ github.workspace }}/rom/out/target/product/${{ env.DEVICE }}/*.img
+          retention-days: 30
+          if-no-files-found: warn
+      
+      - name: 上传编译日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ github.run_number }}
+          path: |
+            ${{ github.workspace }}/rom/out/build.log
+            ${{ github.workspace }}/rom/out/error.log
+          retention-days: 7
+          if-no-files-found: ignore
+      
+      - name: 清理
+        if: always()
+        run: |
+          echo "编译完成！"
+          df -h
