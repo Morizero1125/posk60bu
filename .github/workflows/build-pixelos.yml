@@ -64,7 +64,7 @@ jobs:
           
           # 初始化 repo
           if [ "$ROM_TYPE" = "pixelos" ]; then
-            ~/.bin/repo init -u https://github.com/PixelOS/manifest -b fourteen --git-lfs
+            ~/.bin/repo init -u https://github.com/PixelOS-AOSP/manifest.git -b fourteen --git-lfs
           elif [ "$ROM_TYPE" = "lineageos" ]; then
             ~/.bin/repo init -u https://github.com/LineageOS/android.git -b lineage-21 --git-lfs
           else
