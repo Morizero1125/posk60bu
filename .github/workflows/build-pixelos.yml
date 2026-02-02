@@ -62,7 +62,13 @@ jobs:
         run: |
           cd ${{ github.workspace }}/rom
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk git-core gnupg flex bison gperf build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc unzip ccache bc rsync libxml2 libxslt1.1 libssl-dev liblz4-tool imagemagick
+          sudo apt-get install -y openjdk-17-jdk git-core gnupg flex bison gperf
+          sudo apt-get install -y build-essential zip curl zlib1g-dev
+          sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
+          sudo apt-get install -y lib32ncurses5-dev x11proto-core-dev libx11-dev
+          sudo apt-get install -y lib32z-dev libgl1-mesa-dev libxml2-utils
+          sudo apt-get install -y xsltproc unzip ccache bc rsync libxml2
+          sudo apt-get install -y libxslt1.1 libssl-dev liblz4-tool imagemagick
       
       - name: Step 2: Sync PixelOS ROM using Repo
         run: |
