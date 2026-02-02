@@ -46,6 +46,14 @@ jobs:
           git config --global user.email "actions@github.com"
           git config --global core.autocrlf false
       
+      - name: 安装 repo 工具
+        run: |
+          mkdir -p ~/.bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
+          chmod a+x ~/.bin/repo
+          echo 'export PATH=~/.bin:$PATH' >> ~/.bashrc
+          export PATH=~/.bin:$PATH
+      
       - name: 创建工作目录
         run: |
           mkdir -p ${{ github.workspace }}/rom
