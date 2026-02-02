@@ -29,7 +29,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # GitHub Actions 只提供 Ubuntu，但我们可以在容器里用 Debian
+    runs-on: ubuntu-latest
     
     steps:
       - name: 清理磁盘空间
@@ -58,86 +58,82 @@ jobs:
           mkdir -p ${{ github.workspace }}/rom
           cd ${{ github.workspace }}/rom
       
-      - name: 同步 PixelOS 源码
+      - name: Step 1: 安装必要的工具和依赖
         run: |
           cd ${{ github.workspace }}/rom
           
-          # 创建日志目录
+          sudo apt-get update
+          sudo apt-get install -y \
+            openjdk-17-jdk \
+            git-core \
+            gnupg \
+            flex \
+            bison \
+            gperf \
+            build-essential \
+            zip \
+            curl \
+            zlib1g-dev \
+            gcc-multilib \
+            g++-multilib \
+            libc6-dev-i386 \
+            lib32ncurses5-dev \
+            x11proto-core-dev \
+            libx11-dev \
+            lib32z-dev \
+            libgl1-mesa-dev \
+            libxml2-utils \
+            xsltproc \
+            unzip \
+            ccache \
+            bc \
+            rsync \
+            libxml2 \
+            libxslt1.1 \
+            libssl-dev \
+            liblz4-tool \
+            imagemagick
+      
+      - name: Step 2: 使用 Repo 同步 PixelOS ROM
+        run: |
+          cd ${{ github.workspace }}/rom
+          
           mkdir -p ${{ github.workspace }}/logs
           
-          # 初始化 repo
           if [ "$ROM_TYPE" = "pixelos" ]; then
-            ~/.bin/repo init -u https://github.com/PixelOS-AOSP/manifest.git -b fourteen --git-lfs 2>&1 | tee ${{ github.workspace }}/logs/repo-init.log
+            ~/.bin/repo init -u https://github.com/PixelOS-AOSP/manifest.git -b sixteen --git-lfs 2>&1 | tee ${{ github.workspace }}/logs/repo-init.log
           elif [ "$ROM_TYPE" = "lineageos" ]; then
             ~/.bin/repo init -u https://github.com/LineageOS/android.git -b lineage-21 --git-lfs 2>&1 | tee ${{ github.workspace }}/logs/repo-init.log
           else
             ~/.bin/repo init -u https://android.googlesource.com/platform/manifest -b android-14.0.0 --git-lfs 2>&1 | tee ${{ github.workspace }}/logs/repo-init.log
           fi
           
-          # 同步源码（使用深度同步以加快速度）
           ~/.bin/repo sync -c -j4 --force-sync --no-clone-bundle --no-tags --prune 2>&1 | tee ${{ github.workspace }}/logs/repo-sync.log
       
-      - name: 克隆设备源码
+      - name: Step 3: 下载设备专用源代码
         run: |
           cd ${{ github.workspace }}/rom
           
-          # 克隆设备树
-          git clone https://github.com/cupid-development/android_device_xiaomi_mondrian device/xiaomi/mondrian
+          # Device Tree
+          git clone https://github.com/LineageOS/android_device_xiaomi_mondrian device/xiaomi/mondrian
           
-          # 克隆通用设备代码
-          git clone https://github.com/cupid-development/device_xiaomi_sm8475-common device/xiaomi/sm8475-common
+          # Common Device Code
+          git clone https://github.com/LineageOS/android_device_xiaomi_sm8475-common device/xiaomi/sm8475-common
           
-          # 克隆 vendor
-          git clone https://github.com/cupid-development/vendor_xiaomi_mondrian vendor/xiaomi/mondrian
+          # Vendor
+          git clone https://github.com/LineageOS/android_vendor_xiaomi_mondrian vendor/xiaomi/mondrian
           
-          # 克隆内核
-          git clone https://github.com/cupid-development/android_kernel_xiaomi_sm8450 kernel/xiaomi/mondrian
+          # Kernel
+          git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8450 kernel/xiaomi/mondrian
           
-          # 克隆内核模块
-          git clone https://github.com/cupid-development/android_kernel_xiaomi_sm8450-modules kernel/xiaomi/sm8450-modules
+          # Kernel Modules
+          git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8450-modules kernel/xiaomi/sm8450-modules
           
-          # 克隆设备树
-          git clone https://github.com/cupid-development/android_kernel_xiaomi_sm8450-devicetrees kernel/xiaomi/sm8450-devicetrees
+          # Kernel Device Trees
+          git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8450-devicetrees kernel/xiaomi/sm8450-devicetrees
           
-          # 克隆其他可能的依赖
-          git clone https://github.com/cupid-development/device_xiaomi_sepolicy device/xiaomi/sepolicy
-      
-      - name: 设置编译环境
-        run: |
-          cd ${{ github.workspace }}/rom
-          
-          # 安装依赖
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            ccache \
-            git \
-            gnupg \
-            flex \
-            bison \
-            gperf \
-            libsdl1.2-dev \
-            libesd-java \
-            libwxgtk3.0-dev \
-            squashfs-tools \
-            xsltproc \
-            zip \
-            libxml2-utils \
-            zlib1g-dev \
-            imagemagick \
-            liblz4-tool \
-            libssl-dev \
-            libncurses5 \
-            libncurses5-dev \
-            openjdk-17-jdk \
-            python3 \
-            python-is-python3 \
-            bc \
-            rsync \
-            libxml2 \
-            libxslt1.1 \
-            zip \
-            unzip
+          # Sepolicy
+          git clone https://github.com/LineageOS/android_device_xiaomi_sepolicy device/xiaomi/sepolicy
       
       - name: 设置 ccache
         run: |
@@ -147,27 +143,19 @@ jobs:
           ccache -M $CCACHE_SIZE
           ccache -z
       
-      - name: 编译 ROM
+      - name: Step 4: 构建 ROM
         run: |
           cd ${{ github.workspace }}/rom
           
-          # 设置环境
           source build/envsetup.sh
-          
-          # 选择设备
           lunch pixelos_mondrian-userdebug
-          
-          # 开始编译
-          m -j$(nproc --all) bacon
-          
-          # 或者使用 make
-          # make -j$(nproc --all) bacon
+          mka bacon -j$(nproc --all)
       
       - name: 显示 ccache 统计
         run: |
           ccache -s
       
-      - name: 查找编译产物
+      - name: Step 5: 查找已构建的 ROM
         run: |
           cd ${{ github.workspace }}/rom
           find . -name "*.zip" -type f | head -20

@@ -3,12 +3,24 @@
     <remote name="github" fetch="https://github.com/" />
 
     <!-- Device Tree -->
-    <project path="device/xiaomi/mondrian" name="cupid-development/android_device_xiaomi_mondrian" remote="github" revision="sixteen" />
+    <project path="device/xiaomi/mondrian" name="LineageOS/android_device_xiaomi_mondrian" remote="github" revision="lineage-21" />
+
+    <!-- Common Device Code -->
+    <project path="device/xiaomi/sm8475-common" name="LineageOS/android_device_xiaomi_sm8475-common" remote="github" revision="lineage-21" />
 
     <!-- Vendor -->
-    <project path="vendor/xiaomi/mondrian" name="DanipunK1-mondrian-DC/vendor_xiaomi_mondrian" remote="github" revision="sixteen" />
+    <project path="vendor/xiaomi/mondrian" name="LineageOS/android_vendor_xiaomi_mondrian" remote="github" revision="lineage-21" />
 
-    <!-- Kernel (AOSP-compatible 5.10 kernel for mondrian) -->
-    <project path="kernel/xiaomi/mondrian" name="mondrian-development/android_kernel_xiaomi_mondrian" remote="github" revision="sixteen" />
+    <!-- Kernel -->
+    <project path="kernel/xiaomi/mondrian" name="LineageOS/android_kernel_xiaomi_sm8450" remote="github" revision="lineage-21" />
+
+    <!-- Kernel Modules -->
+    <project path="kernel/xiaomi/sm8450-modules" name="LineageOS/android_kernel_xiaomi_sm8450-modules" remote="github" revision="lineage-21" />
+
+    <!-- Kernel Device Trees -->
+    <project path="kernel/xiaomi/sm8450-devicetrees" name="LineageOS/android_kernel_xiaomi_sm8450-devicetrees" remote="github" revision="lineage-21" />
+
+    <!-- Sepolicy -->
+    <project path="device/xiaomi/sepolicy" name="LineageOS/android_device_xiaomi_sepolicy" remote="github" revision="lineage-21" />
 
 </manifest>
