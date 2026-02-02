@@ -30,7 +30,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Clean disk space
         run: |
@@ -62,7 +61,8 @@ jobs:
         run: |
           cd ${{ github.workspace }}/rom
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk git-core gnupg flex bison gperf
+          sudo apt-get install -y openjdk-17-jdk
+          sudo apt-get install -y git-core gnupg flex bison gperf
           sudo apt-get install -y build-essential zip curl zlib1g-dev
           sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
           sudo apt-get install -y lib32ncurses5-dev x11proto-core-dev libx11-dev
@@ -73,9 +73,7 @@ jobs:
       - name: Step 2: Sync PixelOS ROM using Repo
         run: |
           cd ${{ github.workspace }}/rom
-          
           mkdir -p ${{ github.workspace }}/logs
-          
           if [ "$ROM_TYPE" = "pixelos" ]; then
             ~/.bin/repo init -u https://github.com/PixelOS-AOSP/manifest.git -b sixteen --git-lfs 2>&1 | tee ${{ github.workspace }}/logs/repo-init.log
           elif [ "$ROM_TYPE" = "lineageos" ]; then
@@ -83,13 +81,11 @@ jobs:
           else
             ~/.bin/repo init -u https://android.googlesource.com/platform/manifest -b android-14.0.0 --git-lfs 2>&1 | tee ${{ github.workspace }}/logs/repo-init.log
           fi
-          
           ~/.bin/repo sync -c -j4 --force-sync --no-clone-bundle --no-tags --prune 2>&1 | tee ${{ github.workspace }}/logs/repo-sync.log
       
       - name: Step 3: Download device-specific source code
         run: |
           cd ${{ github.workspace }}/rom
-          
           git clone https://github.com/LineageOS/android_device_xiaomi_mondrian device/xiaomi/mondrian
           git clone https://github.com/LineageOS/android_device_xiaomi_sm8475-common device/xiaomi/sm8475-common
           git clone https://github.com/LineageOS/android_vendor_xiaomi_mondrian vendor/xiaomi/mondrian
@@ -109,7 +105,6 @@ jobs:
       - name: Step 4: Build the ROM
         run: |
           cd ${{ github.workspace }}/rom
-          
           source build/envsetup.sh
           lunch pixelos_mondrian-userdebug
           mka bacon -j$(nproc --all)
