@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       device:
-        description: '设备代号'
+        description: 'Device codename'
         required: true
         default: 'mondrian'
       rom_type:
-        description: 'ROM 类型'
+        description: 'ROM type'
         required: true
         default: 'pixelos'
         type: choice
@@ -19,7 +19,7 @@ on:
   push:
     branches: [ main, master ]
   schedule:
-    - cron: '0 0 * * 0'  # 每周日 UTC 0:00 自动编译
+    - cron: '0 0 * * 0'
 
 env:
   DEVICE: ${{ github.event.inputs.device || 'mondrian' }}
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 清理磁盘空间
+      - name: Clean disk space
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
@@ -40,31 +40,31 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           df -h
       
-      - name: 设置 Git 配置
+      - name: Setup Git config
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git config --global core.autocrlf false
       
-      - name: 安装 repo 工具
+      - name: Install repo tool
         run: |
           mkdir -p ~/.bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
           chmod a+x ~/.bin/repo
           echo "$HOME/.bin" >> $GITHUB_PATH
       
-      - name: 创建工作目录
+      - name: Create working directory
         run: |
           mkdir -p ${{ github.workspace }}/rom
           cd ${{ github.workspace }}/rom
       
-      - name: Step 1: 安装必要的工具和依赖
+      - name: Step 1: Install necessary tools and dependencies
         run: |
           cd ${{ github.workspace }}/rom
           sudo apt-get update
           sudo apt-get install -y openjdk-17-jdk git-core gnupg flex bison gperf build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc unzip ccache bc rsync libxml2 libxslt1.1 libssl-dev liblz4-tool imagemagick
       
-      - name: Step 2: 使用 Repo 同步 PixelOS ROM
+      - name: Step 2: Sync PixelOS ROM using Repo
         run: |
           cd ${{ github.workspace }}/rom
           
@@ -80,32 +80,19 @@ jobs:
           
           ~/.bin/repo sync -c -j4 --force-sync --no-clone-bundle --no-tags --prune 2>&1 | tee ${{ github.workspace }}/logs/repo-sync.log
       
-      - name: Step 3: 下载设备专用源代码
+      - name: Step 3: Download device-specific source code
         run: |
           cd ${{ github.workspace }}/rom
           
-          # Device Tree
           git clone https://github.com/LineageOS/android_device_xiaomi_mondrian device/xiaomi/mondrian
-          
-          # Common Device Code
           git clone https://github.com/LineageOS/android_device_xiaomi_sm8475-common device/xiaomi/sm8475-common
-          
-          # Vendor
           git clone https://github.com/LineageOS/android_vendor_xiaomi_mondrian vendor/xiaomi/mondrian
-          
-          # Kernel
           git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8450 kernel/xiaomi/mondrian
-          
-          # Kernel Modules
           git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8450-modules kernel/xiaomi/sm8450-modules
-          
-          # Kernel Device Trees
           git clone https://github.com/LineageOS/android_kernel_xiaomi_sm8450-devicetrees kernel/xiaomi/sm8450-devicetrees
-          
-          # Sepolicy
           git clone https://github.com/LineageOS/android_device_xiaomi_sepolicy device/xiaomi/sepolicy
       
-      - name: 设置 ccache
+      - name: Setup ccache
         run: |
           echo "CCACHE_DIR=$CCACHE_DIR" >> $GITHUB_ENV
           echo "USE_CCACHE=1" >> $GITHUB_ENV
@@ -113,7 +100,7 @@ jobs:
           ccache -M $CCACHE_SIZE
           ccache -z
       
-      - name: Step 4: 构建 ROM
+      - name: Step 4: Build the ROM
         run: |
           cd ${{ github.workspace }}/rom
           
@@ -121,17 +108,17 @@ jobs:
           lunch pixelos_mondrian-userdebug
           mka bacon -j$(nproc --all)
       
-      - name: 显示 ccache 统计
+      - name: Show ccache statistics
         run: |
           ccache -s
       
-      - name: Step 5: 查找已构建的 ROM
+      - name: Step 5: Locate the built ROM
         run: |
           cd ${{ github.workspace }}/rom
           find . -name "*.zip" -type f | head -20
           find out/target/product/$DEVICE -name "*.img" -type f | head -20
       
-      - name: 上传编译产物
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: pixelos-${{ env.DEVICE }}-${{ github.run_number }}
@@ -141,7 +128,7 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       
-      - name: 上传编译日志
+      - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -154,8 +141,8 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
       
-      - name: 清理
+      - name: Cleanup
         if: always()
         run: |
-          echo "编译完成！"
+          echo "Build complete!"
           df -h
